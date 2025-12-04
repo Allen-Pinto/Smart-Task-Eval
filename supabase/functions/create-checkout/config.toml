@@ -1,0 +1,3 @@
+timeout = 60
+max_duration = 60
+max_instances = 10

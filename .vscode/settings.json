@@ -1,0 +1,13 @@
+{
+  "typescript.validate.enable": true,
+  "files.exclude": {
+    "**/supabase/functions": true
+  },
+  "files.watcherExclude": {
+    "**/supabase/functions/**": true
+  },
+  "search.exclude": {
+    "**/supabase/functions": true,
+    "**/supabase/functions/**": true
+  }
+}
