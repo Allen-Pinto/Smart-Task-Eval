@@ -1,0 +1,9 @@
+supabase/functions/
+.next/
+node_modules/
+*.log
+.env*.local
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
