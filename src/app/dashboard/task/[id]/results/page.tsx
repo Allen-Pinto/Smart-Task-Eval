@@ -1,9 +1,9 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { EvaluationReport } from '../../../../../components/evaluation/EvaluationReport'
-import { useEvaluation } from '../../../../../hooks/useEvaluation'
-import { Loader } from '../../../../../components/shared/Loader'
+import { EvaluationReport } from '@/components/evaluation/EvaluationReport'
+import { useEvaluation } from '@/hooks/useEvaluation'
+import { Loader } from '@/components/shared/Loader'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 

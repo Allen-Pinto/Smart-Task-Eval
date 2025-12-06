@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase-client'
+import { supabase } from '@/lib/supabase-client'  // Use absolute path
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -18,6 +18,7 @@ export function useAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setLoading(false) // ← ADD THIS
     })
 
     return () => subscription.unsubscribe()

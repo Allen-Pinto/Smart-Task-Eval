@@ -1,27 +1,31 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  
+  outputFileTracingRoot: process.cwd(),
+  
   images: {
-    domains: ["lh3.googleusercontent.com", "avatars.githubusercontent.com"],
+    domains: [
+      "lh3.googleusercontent.com", 
+      "avatars.githubusercontent.com",
+      "images.unsplash.com" 
+    ],
   },
+  
   eslint: {
-    ignoreDuringBuilds: true, // ✅ Fixes ESLint error
+    ignoreDuringBuilds: true,
   },
+  
   typescript: {
-    ignoreBuildErrors: true, // ✅ Fixes TypeScript errors
+    ignoreBuildErrors: true,
   },
-  webpack: (config, { isServer }) => {
-    // Ignore Deno/Edge Function imports during build
-    config.module = config.module || {};
-    
-    // Ignore URL imports (https://deno.land/...)
-    config.externals = [...(config.externals || []), 
-      /^https:\/\//,
-      /^deno:/
-    ];
-    
-    return config;
-  },
+  
+  experimental: {
+    turbo: {
+      resolveAlias: {
+      }
+    }
+  }
 }
 
 module.exports = nextConfig

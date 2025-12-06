@@ -2,12 +2,9 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '../../types/supabse';
 
-// Helper function to create a Supabase client with async cookie handling
 export const createClient = () => {
-  // Create a lazy promise for cookies that will be awaited when needed
   const cookieStorePromise = cookies();
   
-  // Create a wrapper that handles async cookie operations
   const cookieHandler = {
     async getAll() {
       const cookieStore = await cookieStorePromise;
@@ -20,7 +17,6 @@ export const createClient = () => {
           await cookieStore.set(name, value, options);
         }
       } catch (error) {
-        // Handle error silently
       }
     },
   };

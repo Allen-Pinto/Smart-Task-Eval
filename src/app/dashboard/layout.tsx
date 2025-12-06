@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Navigation } from '../../components/shared/Navigation'
-import { useAuth } from '../../hooks/useAuth'
-import { Loader } from '../../components/shared/Loader'
+import { Navigation } from '@/components/shared/Navigation'
+import { useAuth } from '@/hooks/useAuth'
+import { Loader } from '@/components/shared/Loader'
 
 export default function DashboardLayout({
   children,
@@ -16,7 +16,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login')
+      router.push('/auth/login')
     }
   }, [user, loading, router])
 

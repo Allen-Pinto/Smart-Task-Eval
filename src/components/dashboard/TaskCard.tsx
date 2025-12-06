@@ -2,7 +2,7 @@
 
 import { Code, Eye, Clock } from 'lucide-react'
 import Link from 'next/link'
-import { Task } from '../../types'
+import { Task } from '@/types'
 import { motion } from 'framer-motion'
 
 interface TaskCardProps {
@@ -21,7 +21,7 @@ export function TaskCard({ task }: TaskCardProps) {
   const config = statusConfig[task.status as keyof typeof statusConfig] || statusConfig.pending
 
   return (
-    <Link href={`/task/${task.id}/results`}>
+    <Link href={`/dashboard/task/${task.id}/results`}>
       <motion.div
         whileHover={{ scale: 1.02 }}
         className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg flex justify-between items-center cursor-pointer transition-all"

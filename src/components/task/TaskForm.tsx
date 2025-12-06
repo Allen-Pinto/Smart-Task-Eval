@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CodeEditor } from './CodeEditor'
-import { supabase } from '../../lib/supabase-client'
-import { apiClient } from '../../lib/api-client'
+import { supabase } from '@/lib/supabase-client' 
+import { apiClient } from '@/lib/api-client' 
 
 export function TaskForm() {
   const router = useRouter()
@@ -40,7 +40,8 @@ export function TaskForm() {
 
       await apiClient.triggerEvaluation(task.id)
 
-      router.push(`/task/${task.id}/results`)
+      // FIXED: Changed from /task to /dashboard/task
+      router.push(`/dashboard/task/${task.id}/results`)
     } catch (err: any) {
       setError(err.message)
       setLoading(false)

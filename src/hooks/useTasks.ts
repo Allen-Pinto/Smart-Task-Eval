@@ -1,15 +1,19 @@
+// hooks/useTasks.ts
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '../lib/supabase-client'
-import { Task } from '../types'
+import { supabase } from '@/lib/supabase-client'  // Use absolute path
+import { Task } from '@/types'  // Use absolute path
 
 export function useTasks() {
   const { data: tasks, isLoading: loading, error } = useQuery({
     queryKey: ['tasks'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Task[]> => {  // Explicit return type
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return null  // Return null instead of throwing
+      
+      if (!user) {
+        return [] 
+      }
       
       const { data, error } = await supabase
         .from('tasks')
@@ -20,7 +24,8 @@ export function useTasks() {
       if (error) throw error
       return data as Task[]
     },
+    initialData: [], 
   })
 
-  return { tasks: tasks ?? null, loading, error }
+  return { tasks: tasks ?? [], loading, error }  
 }

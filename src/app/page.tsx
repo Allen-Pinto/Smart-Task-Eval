@@ -16,7 +16,7 @@ export default function Home() {
           </div>
           <span className="text-2xl font-bold">SmartTaskEval</span>
         </div>
-        <Link href="/login">
+        <Link href="/auth/login">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -46,7 +46,7 @@ export default function Home() {
             Get instant AI-powered feedback on your code with detailed scores, strengths, and improvements using Llama 3.1 70B
           </p>
           
-          <Link href="/login">
+          <Link href="/auth/login">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -64,21 +64,32 @@ export default function Home() {
           transition={{ delay: 0.4, duration: 0.8 }}
           className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20"
         >
-          {[
-            { icon: Code, title: 'Smart Analysis', desc: 'AI evaluates code quality and logic', color: 'purple' },
-            { icon: TrendingUp, title: 'Detailed Scores', desc: 'Get scores 0-10 with feedback', color: 'pink' },
-            { icon: Zap, title: 'Instant Results', desc: 'Receive reports in seconds', color: 'purple' },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              whileHover={{ y: -5 }}
-              className={`p-6 bg-gradient-to-br from-${item.color}-500/20 to-${item.color}-600/20 backdrop-blur-lg border border-${item.color}-500/30 rounded-xl`}
-            >
-              <item.icon className={`w-12 h-12 text-${item.color}-400 mb-4 mx-auto`} />
-              <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
-              <p className="text-gray-400">{item.desc}</p>
-            </motion.div>
-          ))}
+          <motion.div
+            whileHover={{ y: -5 }}
+            className="p-6 bg-gradient-to-br from-purple-500/20 to-purple-600/20 backdrop-blur-lg border border-purple-500/30 rounded-xl"
+          >
+            <Code className="w-12 h-12 text-purple-400 mb-4 mx-auto" />
+            <h3 className="text-xl font-semibold mb-2">Smart Analysis</h3>
+            <p className="text-gray-400">AI evaluates code quality and logic</p>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ y: -5 }}
+            className="p-6 bg-gradient-to-br from-pink-500/20 to-pink-600/20 backdrop-blur-lg border border-pink-500/30 rounded-xl"
+          >
+            <TrendingUp className="w-12 h-12 text-pink-400 mb-4 mx-auto" />
+            <h3 className="text-xl font-semibold mb-2">Detailed Scores</h3>
+            <p className="text-gray-400">Get scores 0-10 with feedback</p>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ y: -5 }}
+            className="p-6 bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-lg border border-purple-500/30 rounded-xl"
+          >
+            <Zap className="w-12 h-12 text-purple-400 mb-4 mx-auto" />
+            <h3 className="text-xl font-semibold mb-2">Instant Results</h3>
+            <p className="text-gray-400">Receive reports in seconds</p>
+          </motion.div>
         </motion.div>
       </div>
     </main>

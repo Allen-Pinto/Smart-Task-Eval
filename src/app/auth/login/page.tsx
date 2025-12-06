@@ -17,7 +17,7 @@ export default function LoginPage() {
           <div className="w-full border-t border-gray-700"></div>
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-gray-900 text-gray-400">Or continue with email</span>
+          <span className="px-2 text-gray-400">Or continue with email</span>
         </div>
       </div>
 

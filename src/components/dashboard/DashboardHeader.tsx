@@ -12,7 +12,7 @@ export function DashboardHeader() {
         <p className="text-gray-400">Manage your code evaluations</p>
       </div>
       
-      <Link href="/submit">
+      <Link href="/dashboard/submit">
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

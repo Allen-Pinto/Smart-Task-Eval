@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
-import { AnimatedCharacter } from '../shared/AnimatedCharacter'
 
 interface AuthLayoutProps {
   title: string
@@ -16,7 +15,6 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNiIgc3Ryb2tlPSJyZ2JhKDEyNywgMTI3LCAyNTUsIDAuMSkiLz48L2c+PC9zdmc+')] opacity-20"></div>
       
       <div className="absolute left-10 top-1/4 hidden lg:block">
-        <AnimatedCharacter />
       </div>
 
       <motion.div

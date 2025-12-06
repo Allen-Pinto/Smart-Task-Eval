@@ -1,6 +1,12 @@
 'use client'
 
-import { apiClient } from '../lib/api-client'
+import { apiClient } from '@/lib/api-client' 
+
+interface PaymentData {
+  orderId: string
+  paymentId: string
+  signature: string
+}
 
 export function usePayment() {
   const createOrder = async (taskId: string, amount: number) => {
@@ -8,11 +14,7 @@ export function usePayment() {
     return response
   }
 
-  const verifyPayment = async (paymentData: {
-    orderId: string
-    paymentId: string
-    signature: string
-  }) => {
+  const verifyPayment = async (paymentData: PaymentData) => {
     const response = await apiClient.verifyPayment(paymentData)
     return response
   }

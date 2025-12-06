@@ -1,9 +1,9 @@
 'use client'
 
-import { DashboardHeader } from '../../../components/dashboard/DashboardHeader'
-import { StatsCard } from '../../../components/dashboard/StatsCard'
-import { TaskList } from '../../../components/dashboard/TaskList'
-import { useTasks } from '../../../hooks/useTasks'
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
+import { StatsCard } from '@/components/dashboard/StatsCard'
+import { TaskList } from '@/components/dashboard/TaskList'
+import { useTasks } from '@/hooks/useTasks'
 import { FileCode, CheckCircle, TrendingUp, Clock } from 'lucide-react'
 
 export default function DashboardPage() {
