@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CodeEditor } from './CodeEditor'
 import { supabase } from '@/lib/supabase-client' 
-import { apiClient } from '@/lib/api-client' 
 
 export function TaskForm() {
   const router = useRouter()
@@ -23,27 +22,70 @@ export function TaskForm() {
     setError('')
 
     try {
+      console.log('📝 Starting task submission...')
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
+      console.log('👤 User authenticated:', user.email)
+      
+      // Create task with processing status
+      console.log('📦 Creating task in database...')
       const { data: task, error: taskError } = await supabase
         .from('tasks')
         .insert({
           ...formData,
           user_id: user.id,
-          status: 'pending',
+          status: 'processing', // Start as processing
         })
         .select()
         .single()
 
-      if (taskError) throw taskError
+      if (taskError) {
+        console.error('Database error:', taskError)
+        throw taskError
+      }
 
-      await apiClient.triggerEvaluation(task.id)
+      console.log('Task created:', task.id)
+      console.log('Calling AI evaluation API...')
 
-      // FIXED: Changed from /task to /dashboard/task
+      // Trigger AI evaluation in background with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) 
+
+      fetch('/api/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ taskId: task.id }),
+        signal: controller.signal
+      })
+      .then(async response => {
+        clearTimeout(timeoutId)
+        console.log('📥 API Response status:', response.status)
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('API Error response:', errorText)
+          throw new Error(`API Error: ${response.status} - ${errorText}`)
+        }
+        
+        const data = await response.json()
+        console.log('API Success:', data)
+        return data
+      })
+      .catch(error => {
+        clearTimeout(timeoutId)
+        console.error('API Call failed:', error)
+      })
+
+      // Redirect immediately (page will show processing state)
+      console.log('Redirecting to results page...')
       router.push(`/dashboard/task/${task.id}/results`)
+
     } catch (err: any) {
-      setError(err.message)
+      console.error('Form submission error:', err)
+      setError(err.message || 'Submission failed. Please try again.')
       setLoading(false)
     }
   }
@@ -98,10 +140,14 @@ export function TaskForm() {
           />
         </div>
 
-        <CodeEditor
-          value={formData.code_text}
-          onChange={(value) => setFormData({ ...formData, code_text: value })}
-        />
+        <div>
+          <label className="block text-sm font-medium mb-2">Code *</label>
+          <CodeEditor
+            value={formData.code_text}
+            onChange={(value) => setFormData({ ...formData, code_text: value })}
+            language={formData.language}
+          />
+        </div>
 
         <div className="flex gap-4 pt-4">
           <button
@@ -109,7 +155,12 @@ export function TaskForm() {
             disabled={loading}
             className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg font-semibold transition-all disabled:opacity-50"
           >
-            {loading ? 'Submitting...' : 'Submit for Evaluation'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                Submitting...
+              </span>
+            ) : 'Submit for Evaluation'}
           </button>
           <button
             type="button"

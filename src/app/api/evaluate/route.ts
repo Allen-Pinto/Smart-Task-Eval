@@ -1,134 +1,177 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '../../lib/supabase-server';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { evaluateCode } from '@/lib/groq-client'
 
-// Rate limiting configuration
-const RATE_LIMIT = {
-  maxRequests: 5,
-  windowMs: 60 * 1000, // 1 minute
-};
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+console.log('Supabase URL:', supabaseUrl ? 'Set' : 'Missing')
+console.log('Supabase Key:', supabaseKey ? 'Set' : 'Missing')
 
-function checkRateLimit(userId: string): { allowed: boolean; resetIn: number } {
-  const now = Date.now();
-  const userLimit = rateLimitMap.get(userId);
-  
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT.windowMs });
-    return { allowed: true, resetIn: RATE_LIMIT.windowMs };
-  }
-  
-  if (userLimit.count >= RATE_LIMIT.maxRequests) {
-    return { allowed: false, resetIn: userLimit.resetTime - now };
-  }
-  
-  userLimit.count++;
-  return { allowed: true, resetIn: userLimit.resetTime - now };
-}
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 export async function POST(request: NextRequest) {
+  console.log('\n ========== /api/evaluate CALLED ==========')
+  console.log('Time:', new Date().toISOString())
+  
+  let taskId: string | null = null
+  
   try {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    // Parse request body
+    console.log('Parsing request...')
+    const body = await request.json()
+    taskId = body.taskId
     
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // Rate limiting check
-    const rateLimit = checkRateLimit(user.id);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { 
-          error: 'Rate limit exceeded', 
-          retryAfter: Math.ceil(rateLimit.resetIn / 1000) 
-        },
-        { 
-          status: 429,
-          headers: {
-            'Retry-After': Math.ceil(rateLimit.resetIn / 1000).toString(),
-            'X-RateLimit-Limit': RATE_LIMIT.maxRequests.toString(),
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': (Date.now() + rateLimit.resetIn).toString(),
-          }
-        }
-      );
-    }
-
-    const { taskId } = await request.json();
+    console.log('Received taskId:', taskId)
     
     if (!taskId) {
+      console.error('ERROR: No taskId provided')
       return NextResponse.json(
         { error: 'Task ID is required' },
         { status: 400 }
-      );
+      )
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
-
-    // Validate task exists and belongs to user
+    // Get the task
+    console.log('Fetching task from database...')
     const { data: task, error: taskError } = await supabase
       .from('tasks')
-      .select('id, status')
+      .select('*')
       .eq('id', taskId)
-      .eq('user_id', user.id)
-      .single();
+      .single()
 
     if (taskError || !task) {
+      console.error('ERROR: Task not found:', taskError)
       return NextResponse.json(
-        { error: 'Task not found or unauthorized' },
+        { error: 'Task not found' },
         { status: 404 }
-      );
+      )
     }
 
-    if (task.status === 'evaluated' || task.status === 'processing') {
-      return NextResponse.json(
-        { error: `Task already ${task.status}` },
-        { status: 400 }
-      );
+    console.log('Task found:')
+    console.log('   Title:', task.title)
+    console.log('   Language:', task.language)
+    console.log('   Code length:', task.code_text?.length || 0, 'chars')
+    console.log('   Current status:', task.status)
+
+    // Update status to processing
+    console.log('Updating task status to "processing"...')
+    const { error: updateError } = await supabase
+      .from('tasks')
+      .update({ 
+        status: 'processing',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', taskId)
+
+    if (updateError) {
+      console.error('ERROR updating task:', updateError)
+      throw updateError
     }
-
-    const response = await fetch(`${supabaseUrl}/functions/v1/evaluate-task`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        taskId,
-        userId: user.id,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      return NextResponse.json(
-        { error: `Evaluation failed: ${error}` },
-        { status: 500 }
-      );
-    }
-
-    const result = await response.json();
     
-    return NextResponse.json(result);
+    console.log('Task status updated to "processing"')
+
+    // Call AI for evaluation
+    console.log('Calling Groq AI for evaluation...')
+    console.log('   Model:', process.env.GROQ_MODEL_NAME || 'default')
+    
+    const evaluation = await evaluateCode(
+      task.code_text,
+      task.language,
+      task.description
+    )
+
+    console.log('AI Evaluation complete!')
+    console.log('   Score:', evaluation.score)
+    console.log('   Strengths:', evaluation.strengths?.length || 0)
+    console.log('   Improvements:', evaluation.improvements?.length || 0)
+    console.log('   Summary:', evaluation.summary?.substring(0, 50) + '...')
+
+    // First update the task status to evaluated
+    console.log('Updating task status to "evaluated"...')
+    const { error: statusUpdateError } = await supabase
+      .from('tasks')
+      .update({
+        status: 'evaluated',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', taskId)
+
+    if (statusUpdateError) {
+      console.error('ERROR updating task status:', statusUpdateError)
+      throw statusUpdateError
+    }
+    
+    console.log('Task status updated to "evaluated"')
+
+    // Create evaluation record with score
+    console.log('Creating evaluation record...')
+    const { error: evalError } = await supabase
+      .from('evaluations')
+      .insert({
+        task_id: taskId,
+        score: evaluation.score,
+        strengths: evaluation.strengths,
+        improvements: evaluation.improvements,
+        summary: evaluation.summary,
+        is_unlocked: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+
+    if (evalError) {
+      console.error('ERROR creating evaluation:', evalError)
+      throw evalError
+    }
+    
+    console.log('Evaluation record created')
+    console.log('========== EVALUATION COMPLETE ==========\n')
+
+    return NextResponse.json({
+      success: true,
+      evaluation
+    })
+
   } catch (error: any) {
-    console.error('Evaluation API error:', error);
+    console.error('\n ========== EVALUATION ERROR ==========')
+    console.error('Error:', error.message)
+    console.error('Stack:', error.stack)
+    console.error('Task ID:', taskId)
+    console.error('=======================================\n')
+    
+    // Mark task as error (only if we have taskId)
+    if (taskId) {
+      try {
+        console.log('Marking task as "error"...')
+        await supabase
+          .from('tasks')
+          .update({ 
+            status: 'error',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', taskId)
+        console.log('Task marked as "error"')
+      } catch (e: any) {
+        console.error('Failed to update task status:', e.message)
+      }
+    }
+
     return NextResponse.json(
-      { error: error.message || 'Evaluation failed' },
+      { 
+        error: error.message || 'Evaluation failed',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
-    );
+    )
   }
 }
 
-export const runtime = 'nodejs';
+export async function GET(request: NextRequest) {
+  console.log('/api/evaluate GET called - Testing endpoint')
+  return NextResponse.json({
+    status: 'API is running',
+    timestamp: new Date().toISOString(),
+    supabase: supabaseUrl ? 'Configured' : 'Missing URL',
+    groq: process.env.GROQ_API_KEY ? 'Configured' : 'Missing API Key'
+  })
+}

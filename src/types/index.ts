@@ -4,22 +4,24 @@ export interface Task {
   title: string
   description: string
   code_text: string
-  file_url: string | null
+  file_url?: string
   language: string
   status: 'pending' | 'processing' | 'evaluated' | 'locked' | 'error'
+  score?: number
   is_public: boolean
   created_at: string
   updated_at: string
+  evaluation?: Evaluation
 }
 
 export interface Evaluation {
   id: string
   task_id: string
-  score: number | null
+  score: number
   strengths: string[]
   improvements: string[]
-  summary: string | null
-  full_report: string | null
+  summary?: string
+  full_report?: string
   is_unlocked: boolean
   created_at: string
   updated_at: string

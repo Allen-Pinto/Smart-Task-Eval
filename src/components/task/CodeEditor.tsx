@@ -5,14 +5,20 @@ import { Code } from 'lucide-react'
 interface CodeEditorProps {
   value: string
   onChange: (value: string) => void
+  language?: string
 }
 
-export function CodeEditor({ value, onChange }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, language }: CodeEditorProps) {
   return (
     <div>
       <label className="text-sm font-medium mb-2 flex items-center gap-2">
         <Code className="w-4 h-4" />
         Code *
+        {language && (
+          <span className="ml-auto text-xs text-gray-400 px-2 py-1 bg-gray-800 rounded">
+            {language}
+          </span>
+        )}
       </label>
       <textarea
         value={value}

@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 'use client'
 
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
@@ -9,11 +10,23 @@ import { FileCode, CheckCircle, TrendingUp, Clock } from 'lucide-react'
 export default function DashboardPage() {
   const { tasks, loading } = useTasks()
 
+  const evaluatedTasks = tasks.filter(t => t.status === 'evaluated')
+  
+  const calculateAverageScore = () => {
+    const tasksWithScores = evaluatedTasks.filter(t => t.score != null)
+    if (tasksWithScores.length === 0) {
+      return 0.0
+    }
+    
+    const totalScore = tasksWithScores.reduce((sum, task) => sum + (task.score || 0), 0)
+    return totalScore / tasksWithScores.length
+  }
+
   const stats = {
-    total: tasks?.length || 0,
-    completed: tasks?.filter(t => t.status === 'evaluated').length || 0,
-    pending: tasks?.filter(t => t.status === 'processing').length || 0,
-    avgScore: 7.8,
+    total: tasks.length || 0,
+    completed: evaluatedTasks.length || 0,
+    pending: tasks.filter(t => t.status === 'processing').length || 0,
+    avgScore: calculateAverageScore(),
   }
 
   return (
