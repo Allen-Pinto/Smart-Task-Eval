@@ -3,15 +3,17 @@
 import { useParams } from 'next/navigation'
 import { useTask } from '@/hooks/useTasks'
 import { Loader } from '@/components/shared/Loader'
-import { ArrowLeft, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertCircle, CheckCircle, Lock } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import PaymentButton from '@/components/payment/PaymentButton'
 
 export default function ResultsPage() {
   const params = useParams()
   const taskId = params.id as string
   const { task, loading: taskLoading, refetch: refetchTask } = useTask(taskId)
   const [manualRefreshCount, setManualRefreshCount] = useState(0)
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
 
   // Debug logging
   useEffect(() => {
@@ -22,6 +24,7 @@ export default function ResultsPage() {
     if (task) {
       console.log('Task status:', task.status)
       console.log('Task evaluation:', task.evaluation)
+      console.log('Evaluation unlocked:', task.evaluation?.is_unlocked)
     }
   }, [taskId, task, taskLoading])
 
@@ -41,6 +44,11 @@ export default function ResultsPage() {
     console.log('Manual refresh triggered')
     setManualRefreshCount(prev => prev + 1)
     refetchTask()
+  }
+
+  const handlePaymentSuccess = () => {
+    setShowPaymentSuccess(true)
+    refetchTask() // Refresh to get updated evaluation with is_unlocked = true
   }
 
   if (taskLoading) {
@@ -114,7 +122,6 @@ export default function ResultsPage() {
             <p>Language: {task.language}</p>
             <p>Status: {task.status}</p>
             <p>Last checked: {new Date().toLocaleTimeString()}</p>
-            <p>Refresh count: {manualRefreshCount}</p>
           </div>
           <button
             onClick={handleManualRefresh}
@@ -170,6 +177,7 @@ export default function ResultsPage() {
 
   // Show evaluation results (task.status === 'evaluated')
   const evaluation = task.evaluation
+  const isEvaluationUnlocked = evaluation?.is_unlocked
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -190,6 +198,18 @@ export default function ResultsPage() {
         </button>
       </div>
 
+      {showPaymentSuccess && (
+        <div className="mb-6 glass-panel rounded-xl p-4 border border-green-500/30 bg-green-500/10">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-6 h-6 text-green-500" />
+            <div>
+              <h3 className="font-semibold text-green-400">Payment Successful!</h3>
+              <p className="text-sm text-gray-400">Your detailed evaluation has been unlocked.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {evaluation ? (
         <div className="glass-panel rounded-xl p-8">
           <div className="mb-8">
@@ -201,7 +221,7 @@ export default function ResultsPage() {
             <p className="text-gray-400">Language: {task.language}</p>
           </div>
 
-          {/* Score */}
+          {/* Score - Always visible */}
           <div className="mb-8">
             <div className="text-center">
               <div className="text-6xl font-bold text-white mb-2">
@@ -211,48 +231,74 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          {/* Summary */}
-          {evaluation.summary && (
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-3">Summary</h2>
-              <div className="bg-gray-800/50 p-4 rounded-lg">
-                <p className="text-gray-300">{evaluation.summary}</p>
+          {/* Payment required for detailed review */}
+          {!isEvaluationUnlocked ? (
+            <div className="mb-8 glass-panel border border-purple-500/30 rounded-xl p-8 text-center">
+              <div className="flex justify-center mb-6">
+                <Lock className="w-16 h-16 text-purple-500" />
+              </div>
+              <h2 className="text-2xl font-bold mb-4">Detailed Review Locked</h2>
+              <p className="text-gray-400 mb-6">
+                Your code has been evaluated and scored. To view the detailed AI analysis including strengths, improvements, and comprehensive feedback, please unlock the full report.
+              </p>
+              <div className="space-y-4">
+                <PaymentButton 
+                  taskId={taskId} 
+                  amount={10}
+                  onSuccess={handlePaymentSuccess}
+                  onError={(error) => alert(`Payment error: ${error}`)}
+                />
+                <p className="text-sm text-gray-500">
+                  Secure payment via Razorpay • Test mode (no real money charged)
+                </p>
               </div>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Summary - Only visible after payment */}
+              {evaluation.summary && (
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold mb-3">Summary</h2>
+                  <div className="bg-gray-800/50 p-4 rounded-lg">
+                    <p className="text-gray-300">{evaluation.summary}</p>
+                  </div>
+                </div>
+              )}
 
-          {/* Strengths */}
-          {evaluation.strengths && evaluation.strengths.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-3">Strengths</h2>
-              <ul className="space-y-3">
-                {evaluation.strengths.map((strength: string, index: number) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-green-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-green-500 text-sm">✓</span>
-                    </div>
-                    <span className="text-gray-300">{strength}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+              {/* Strengths - Only visible after payment */}
+              {evaluation.strengths && evaluation.strengths.length > 0 && (
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold mb-3">Strengths</h2>
+                  <ul className="space-y-3">
+                    {evaluation.strengths.map((strength: string, index: number) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-green-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-green-500 text-sm">✓</span>
+                        </div>
+                        <span className="text-gray-300">{strength}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-          {/* Improvements */}
-          {evaluation.improvements && evaluation.improvements.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-3">Areas for Improvement</h2>
-              <ul className="space-y-3">
-                {evaluation.improvements.map((improvement: string, index: number) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-yellow-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-yellow-500 text-sm">→</span>
-                    </div>
-                    <span className="text-gray-300">{improvement}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+              {/* Improvements - Only visible after payment */}
+              {evaluation.improvements && evaluation.improvements.length > 0 && (
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold mb-3">Areas for Improvement</h2>
+                  <ul className="space-y-3">
+                    {evaluation.improvements.map((improvement: string, index: number) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-yellow-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-yellow-500 text-sm">→</span>
+                        </div>
+                        <span className="text-gray-300">{improvement}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
           )}
 
           {/* Original Code Preview */}

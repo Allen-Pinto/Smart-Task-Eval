@@ -2,8 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   
-  outputFileTracingRoot: process.cwd(),
-  
   images: {
     domains: [
       "lh3.googleusercontent.com", 
@@ -19,12 +17,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  
+
   experimental: {
-    turbo: {
-      resolveAlias: {
-      }
-    }
+    serverComponentsExternalPackages: ['razorpay', 'crypto'] 
   }
 }
 
