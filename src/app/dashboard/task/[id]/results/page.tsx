@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation'
 import { useTask } from '@/hooks/useTasks'
 import { Loader } from '@/components/shared/Loader'
-import { ArrowLeft, RefreshCw, AlertCircle, CheckCircle, Lock } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertCircle, CheckCircle, Lock, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import PaymentButton from '@/components/payment/PaymentButton'
@@ -14,6 +14,7 @@ export default function ResultsPage() {
   const { task, loading: taskLoading, refetch: refetchTask } = useTask(taskId)
   const [manualRefreshCount, setManualRefreshCount] = useState(0)
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
+  const [showDetailedReview, setShowDetailedReview] = useState(false)
 
   // Debug logging
   useEffect(() => {
@@ -48,7 +49,15 @@ export default function ResultsPage() {
 
   const handlePaymentSuccess = () => {
     setShowPaymentSuccess(true)
-    refetchTask() // Refresh to get updated evaluation with is_unlocked = true
+    setShowDetailedReview(true) // Automatically show details after payment
+    refetchTask()
+  }
+
+  const handleViewDetailsClick = () => {
+    if (task?.evaluation?.is_unlocked) {
+      setShowDetailedReview(true)
+    }
+    // If not unlocked, PaymentButton will handle it
   }
 
   if (taskLoading) {
@@ -231,16 +240,47 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          {/* Payment required for detailed review */}
-          {!isEvaluationUnlocked ? (
+          {/* View Details Button or Payment Gate */}
+          {!showDetailedReview ? (
+            <div className="mb-8 text-center">
+              <button
+                onClick={handleViewDetailsClick}
+                className="inline-flex items-center gap-2 px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-semibold text-lg transition-colors"
+              >
+                <Eye className="w-5 h-5" />
+                View Detailed AI Review
+              </button>
+              <p className="mt-3 text-gray-500 text-sm">
+                See strengths, improvements, and comprehensive feedback
+              </p>
+            </div>
+          ) : !isEvaluationUnlocked ? (
             <div className="mb-8 glass-panel border border-purple-500/30 rounded-xl p-8 text-center">
               <div className="flex justify-center mb-6">
                 <Lock className="w-16 h-16 text-purple-500" />
               </div>
-              <h2 className="text-2xl font-bold mb-4">Detailed Review Locked</h2>
+              <h2 className="text-2xl font-bold mb-4">Unlock Detailed Review</h2>
               <p className="text-gray-400 mb-6">
-                Your code has been evaluated and scored. To view the detailed AI analysis including strengths, improvements, and comprehensive feedback, please unlock the full report.
+                Get comprehensive AI analysis including:
               </p>
+              <ul className="text-left max-w-md mx-auto mb-8 space-y-3 text-gray-300">
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>Detailed code analysis</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>Strengths and weaknesses</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>Improvement suggestions</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span>Comprehensive summary</span>
+                </li>
+              </ul>
               <div className="space-y-4">
                 <PaymentButton 
                   taskId={taskId} 

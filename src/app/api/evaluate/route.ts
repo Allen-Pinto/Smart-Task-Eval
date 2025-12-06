@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
   let taskId: string | null = null
   
   try {
-    // Parse request body
     console.log('Parsing request...')
     const body = await request.json()
     taskId = body.taskId
@@ -104,7 +103,7 @@ export async function POST(request: NextRequest) {
     
     console.log('Task status updated to "evaluated"')
 
-    // Create evaluation record with score
+    // Create evaluation record with score - SET is_unlocked TO false
     console.log('Creating evaluation record...')
     const { error: evalError } = await supabase
       .from('evaluations')
@@ -114,7 +113,7 @@ export async function POST(request: NextRequest) {
         strengths: evaluation.strengths,
         improvements: evaluation.improvements,
         summary: evaluation.summary,
-        is_unlocked: true,
+        is_unlocked: false, // CHANGED FROM true TO false
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -124,7 +123,7 @@ export async function POST(request: NextRequest) {
       throw evalError
     }
     
-    console.log('Evaluation record created')
+    console.log('Evaluation record created with is_unlocked: false')
     console.log('========== EVALUATION COMPLETE ==========\n')
 
     return NextResponse.json({

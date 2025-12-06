@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const body = orderId + '|' + paymentId
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
-      .update(body.toString())
+      .update(body)
       .digest('hex')
     
     const isValid = expectedSignature === signature
