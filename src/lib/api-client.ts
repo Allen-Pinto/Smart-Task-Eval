@@ -22,12 +22,46 @@ export const apiClient = {
   },
 
   async createPaymentOrder(taskId: string, amount: number) {
-    // Mock implementation
-    return { orderId: `order_${Date.now()}`, amount }
+    try {
+      const response = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ taskId, amount }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create payment order')
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error creating payment order:', error)
+      throw error
+    }
   },
 
   async verifyPayment(paymentData: any) {
-    // Mock implementation
-    return { success: true, paymentId: paymentData.paymentId }
+    try {
+      const response = await fetch('/api/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(paymentData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Payment verification failed')
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error('Error verifying payment:', error)
+      throw error
+    }
   }
 }

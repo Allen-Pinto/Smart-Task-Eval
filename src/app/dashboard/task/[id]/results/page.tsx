@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation'
 import { useTask } from '@/hooks/useTasks'
 import { Loader } from '@/components/shared/Loader'
-import { ArrowLeft, RefreshCw, AlertCircle, CheckCircle, Lock, Eye } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertCircle, CheckCircle, Lock, Eye, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import PaymentButton from '@/components/payment/PaymentButton'
@@ -15,6 +15,7 @@ export default function ResultsPage() {
   const [manualRefreshCount, setManualRefreshCount] = useState(0)
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
   const [showDetailedReview, setShowDetailedReview] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
 
   // Debug logging
   useEffect(() => {
@@ -41,23 +42,49 @@ export default function ResultsPage() {
     }
   }, [task?.status, refetchTask])
 
+  // Clear payment success message after 5 seconds
+  useEffect(() => {
+    if (showPaymentSuccess) {
+      const timer = setTimeout(() => {
+        setShowPaymentSuccess(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [showPaymentSuccess])
+
   const handleManualRefresh = () => {
     console.log('Manual refresh triggered')
     setManualRefreshCount(prev => prev + 1)
     refetchTask()
   }
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (data?: any) => {
+    console.log('Payment successful callback:', data)
     setShowPaymentSuccess(true)
-    setShowDetailedReview(true) // Automatically show details after payment
-    refetchTask()
+    setPaymentError(null)
+    // Don't automatically show details - let the user click to see them
+    // We'll just show the success message and let them click "View Detailed AI Review" again
+    refetchTask() // Refresh to get updated unlocked status
+  }
+
+  const handlePaymentError = (error: string, errorData?: any) => {
+    console.error('Payment error callback:', error, errorData)
+    setPaymentError(error)
+    // Clear error after 5 seconds
+    setTimeout(() => setPaymentError(null), 5000)
   }
 
   const handleViewDetailsClick = () => {
+    console.log('View details clicked')
+    console.log('Evaluation unlocked:', task?.evaluation?.is_unlocked)
+    
     if (task?.evaluation?.is_unlocked) {
       setShowDetailedReview(true)
+      console.log('Showing detailed review...')
+    } else {
+      console.log('Evaluation not unlocked, payment button will handle')
+      // PaymentButton will handle the payment flow
     }
-    // If not unlocked, PaymentButton will handle it
   }
 
   if (taskLoading) {
@@ -208,12 +235,24 @@ export default function ResultsPage() {
       </div>
 
       {showPaymentSuccess && (
-        <div className="mb-6 glass-panel rounded-xl p-4 border border-green-500/30 bg-green-500/10">
+        <div className="mb-6 glass-panel rounded-xl p-4 border border-green-500/30 bg-green-500/10 animate-pulse">
           <div className="flex items-center gap-3">
             <CheckCircle className="w-6 h-6 text-green-500" />
             <div>
               <h3 className="font-semibold text-green-400">Payment Successful!</h3>
               <p className="text-sm text-gray-400">Your detailed evaluation has been unlocked.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paymentError && (
+        <div className="mb-6 glass-panel rounded-xl p-4 border border-red-500/30 bg-red-500/10">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6 text-red-500" />
+            <div>
+              <h3 className="font-semibold text-red-400">Payment Error</h3>
+              <p className="text-sm text-gray-400">{paymentError}</p>
             </div>
           </div>
         </div>
@@ -228,6 +267,12 @@ export default function ResultsPage() {
             </div>
             <p className="text-gray-400">Task: {task.title}</p>
             <p className="text-gray-400">Language: {task.language}</p>
+            {isEvaluationUnlocked && (
+              <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
+                <Sparkles className="w-3 h-3" />
+                Premium Evaluation Unlocked
+              </div>
+            )}
           </div>
 
           {/* Score - Always visible */}
@@ -240,18 +285,21 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          {/* View Details Button or Payment Gate */}
+          {/* Dynamic Content Area */}
           {!showDetailedReview ? (
             <div className="mb-8 text-center">
               <button
                 onClick={handleViewDetailsClick}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-semibold text-lg transition-colors"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl font-semibold text-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
               >
                 <Eye className="w-5 h-5" />
                 View Detailed AI Review
               </button>
               <p className="mt-3 text-gray-500 text-sm">
-                See strengths, improvements, and comprehensive feedback
+                {isEvaluationUnlocked 
+                  ? 'Click to see comprehensive feedback' 
+                  : 'See strengths, improvements, and comprehensive feedback'
+                }
               </p>
             </div>
           ) : !isEvaluationUnlocked ? (
@@ -259,93 +307,129 @@ export default function ResultsPage() {
               <div className="flex justify-center mb-6">
                 <Lock className="w-16 h-16 text-purple-500" />
               </div>
-              <h2 className="text-2xl font-bold mb-4">Unlock Detailed Review</h2>
+              <h2 className="text-2xl font-bold mb-4">Unlock Premium AI Analysis</h2>
               <p className="text-gray-400 mb-6">
-                Get comprehensive AI analysis including:
+                Get comprehensive AI analysis for just ₹10. Unlock these premium features:
               </p>
-              <ul className="text-left max-w-md mx-auto mb-8 space-y-3 text-gray-300">
-                <li className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span>Detailed code analysis</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span>Strengths and weaknesses</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span>Improvement suggestions</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span>Comprehensive summary</span>
-                </li>
-              </ul>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 max-w-2xl mx-auto">
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-white mb-2">📊 Detailed Analysis</h3>
+                  <p className="text-sm text-gray-300">In-depth code review with line-by-line feedback</p>
+                </div>
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-white mb-2">⚡ Optimization Tips</h3>
+                  <p className="text-sm text-gray-300">Performance improvements and best practices</p>
+                </div>
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-white mb-2">🎯 Strengths & Weaknesses</h3>
+                  <p className="text-sm text-gray-300">Identify what you did well and where to improve</p>
+                </div>
+                <div className="bg-gray-800/50 p-4 rounded-lg">
+                  <h3 className="font-semibold text-white mb-2">📝 Comprehensive Summary</h3>
+                  <p className="text-sm text-gray-300">Actionable insights for next steps</p>
+                </div>
+              </div>
+              
               <div className="space-y-4">
                 <PaymentButton 
                   taskId={taskId} 
                   amount={10}
                   onSuccess={handlePaymentSuccess}
-                  onError={(error) => alert(`Payment error: ${error}`)}
+                  onError={handlePaymentError}
+                  buttonText="Unlock Premium Analysis"
+                  className="w-full max-w-md mx-auto"
+                  companyName="CodeMaster AI"
+                  productDescription="Premium Code Evaluation Report"
+                  successText="Payment successful! Your detailed evaluation is now unlocked."
                 />
-                <p className="text-sm text-gray-500">
-                  Secure payment via Razorpay • Test mode (no real money charged)
+                <p className="text-xs text-gray-500 max-w-md mx-auto">
+                  Test mode activated. Use card number <code className="bg-gray-800 px-2 py-1 rounded">4111 1111 1111 1111</code> for testing.
                 </p>
               </div>
+              
+              <button
+                onClick={() => setShowDetailedReview(false)}
+                className="mt-6 text-gray-400 hover:text-white text-sm transition-colors"
+              >
+                ← Back to basic results
+              </button>
             </div>
           ) : (
             <>
-              {/* Summary - Only visible after payment */}
-              {evaluation.summary && (
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold mb-3">Summary</h2>
-                  <div className="bg-gray-800/50 p-4 rounded-lg">
-                    <p className="text-gray-300">{evaluation.summary}</p>
+              {/* Unlocked Premium Content */}
+              <div className="mb-8 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 rounded-xl p-6 border border-purple-500/20">
+                <div className="flex items-center gap-3 mb-4">
+                  <Sparkles className="w-6 h-6 text-purple-400" />
+                  <h2 className="text-xl font-semibold">Premium AI Analysis</h2>
+                </div>
+                
+                {/* Summary - Only visible after payment */}
+                {evaluation.summary && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-2 text-white">Executive Summary</h3>
+                    <div className="bg-gray-800/50 p-4 rounded-lg border-l-4 border-purple-500">
+                      <p className="text-gray-300 leading-relaxed">{evaluation.summary}</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Strengths - Only visible after payment */}
-              {evaluation.strengths && evaluation.strengths.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold mb-3">Strengths</h2>
-                  <ul className="space-y-3">
-                    {evaluation.strengths.map((strength: string, index: number) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-green-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-green-500 text-sm">✓</span>
+                {/* Strengths - Only visible after payment */}
+                {evaluation.strengths && evaluation.strengths.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-2 text-green-400">Key Strengths</h3>
+                    <div className="space-y-3">
+                      {evaluation.strengths.map((strength: string, index: number) => (
+                        <div key={index} className="flex items-start gap-3 bg-green-900/10 p-3 rounded-lg">
+                          <div className="w-6 h-6 rounded-full bg-green-900/50 flex items-center justify-center flex-shrink-0">
+                            <span className="text-green-500">✓</span>
+                          </div>
+                          <span className="text-gray-300">{strength}</span>
                         </div>
-                        <span className="text-gray-300">{strength}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              {/* Improvements - Only visible after payment */}
-              {evaluation.improvements && evaluation.improvements.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold mb-3">Areas for Improvement</h2>
-                  <ul className="space-y-3">
-                    {evaluation.improvements.map((improvement: string, index: number) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-yellow-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-yellow-500 text-sm">→</span>
+                {/* Improvements - Only visible after payment */}
+                {evaluation.improvements && evaluation.improvements.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-2 text-yellow-400">Areas for Improvement</h3>
+                    <div className="space-y-3">
+                      {evaluation.improvements.map((improvement: string, index: number) => (
+                        <div key={index} className="flex items-start gap-3 bg-yellow-900/10 p-3 rounded-lg">
+                          <div className="w-6 h-6 rounded-full bg-yellow-900/50 flex items-center justify-center flex-shrink-0">
+                            <span className="text-yellow-500">→</span>
+                          </div>
+                          <span className="text-gray-300">{improvement}</span>
                         </div>
-                        <span className="text-gray-300">{improvement}</span>
-                      </li>
-                    ))}
-                  </ul>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowDetailedReview(false)}
+                    className="text-gray-400 hover:text-white text-sm transition-colors flex items-center gap-1"
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    Hide detailed analysis
+                  </button>
                 </div>
-              )}
+              </div>
             </>
           )}
 
           {/* Original Code Preview */}
           <div className="mt-12 pt-8 border-t border-gray-700">
-            <h2 className="text-xl font-semibold mb-4">Your Code</h2>
-            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-              <pre className="text-gray-300 text-sm whitespace-pre-wrap">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Your Original Code</h2>
+              <div className="text-sm text-gray-500">
+                {task.language} • {task.code_text?.length || 0} characters
+              </div>
+            </div>
+            <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto border border-gray-700">
+              <pre className="text-gray-300 text-sm whitespace-pre-wrap font-mono">
                 {task.code_text}
               </pre>
             </div>
