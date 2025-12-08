@@ -1,12 +1,14 @@
+// app/dashboard/task/[id]/results/page.tsx
 'use client'
 
 import { useParams } from 'next/navigation'
 import { useTask } from '@/hooks/useTasks'
 import { Loader } from '@/components/shared/Loader'
-import { ArrowLeft, RefreshCw, AlertCircle, CheckCircle, Lock, Eye, Sparkles } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertCircle, CheckCircle, Lock, Eye, Sparkles, Bug } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import PaymentButton from '@/components/payment/PaymentButton'
+import { supabase } from '@/lib/supabase-client'
 
 export default function ResultsPage() {
   const params = useParams()
@@ -15,26 +17,93 @@ export default function ResultsPage() {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
   const [showDetailedReview, setShowDetailedReview] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
+  const [manualEvaluation, setManualEvaluation] = useState<any>(null)
 
-  // Wrap refetchTask for onClick handlers
-  const handleRefresh = useCallback(() => {
-    refetchTask()
-  }, [refetchTask])
+  // Debug function
+  const runDebug = useCallback(async () => {
+    console.log('\n=== RUNNING DEBUG ===')
+    
+    try {
+      // 1. Check task
+      const { data: taskData, error: taskError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single()
+      
+      // 2. Check evaluations
+      const { data: evaluations, error: evalError } = await supabase
+        .from('evaluations')
+        .select('*')
+        .eq('task_id', taskId)
+      
+      // 3. Check payments
+      const { data: payments, error: paymentError } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('task_id', taskId)
+      
+      const info = {
+        task: taskData,
+        taskError: taskError?.message,
+        evaluations,
+        evalError: evalError?.message,
+        payments,
+        paymentError: paymentError?.message,
+        hasEvaluation: !!evaluations?.[0],
+        isUnlocked: evaluations?.[0]?.is_unlocked
+      }
+      
+      setDebugInfo(info)
+      console.log('Debug info:', info)
+      
+      // If we found an evaluation but component doesn't have it, set it manually
+      if (evaluations?.[0] && !task?.evaluation) {
+        console.log('Found evaluation in DB but not in component. Setting manually...')
+        setManualEvaluation(evaluations[0])
+      }
+      
+    } catch (error) {
+      console.error('Debug error:', error)
+    }
+  }, [taskId, task?.evaluation])
 
+  // Auto-run debug on load and when task changes
   useEffect(() => {
-    console.log('=== Results Page State ===')
+    if (taskId) {
+      runDebug()
+    }
+  }, [taskId, runDebug])
+
+  // Enhanced debug logging
+  useEffect(() => {
+    console.log('\n=== Results Page State ===')
     console.log('Task ID:', taskId)
-    console.log('Task:', task)
     console.log('Task loading:', taskLoading)
+    console.log('Task:', task)
+    
     if (task) {
       console.log('Task status:', task.status)
+      console.log('Has evaluation property:', 'evaluation' in task)
       console.log('Task evaluation:', task.evaluation)
+      
       if (task.evaluation) {
         console.log('Evaluation score:', task.evaluation.score)
         console.log('Evaluation unlocked:', task.evaluation.is_unlocked)
+        console.log('Evaluation type:', typeof task.evaluation)
+        console.log('Evaluation keys:', Object.keys(task.evaluation))
+      } else if (task.status === 'evaluated') {
+        console.log('🚨 CRITICAL: Task is evaluated but evaluation is missing!')
+        console.log('Full task object keys:', Object.keys(task))
+        
+        // Try to find evaluation in task object
+        if (task.evaluation) {
+          console.log('Found evaluations array:', task.evaluation)
+        }
       }
     }
-    console.log('========================')
+    console.log('========================\n')
   }, [taskId, task, taskLoading])
 
   // Auto-refresh if task is processing
@@ -56,13 +125,24 @@ export default function ResultsPage() {
     }
   }, [showPaymentSuccess])
 
+  const handleRefresh = useCallback(() => {
+    console.log('Manual refresh triggered')
+    refetchTask()
+    runDebug()
+  }, [refetchTask, runDebug])
+
   const handlePaymentSuccess = useCallback((data?: any) => {
     console.log('✅ Payment successful callback:', data)
     setShowPaymentSuccess(true)
     setPaymentError(null)
     setShowDetailedReview(true) // Auto-show details after payment
-    setTimeout(() => refetchTask(), 1000) // Refresh after 1 second
-  }, [refetchTask])
+    
+    // Refresh after 1 second to get updated unlocked status
+    setTimeout(() => {
+      refetchTask()
+      runDebug()
+    }, 1000)
+  }, [refetchTask, runDebug])
 
   const handlePaymentError = useCallback((error: string, errorData?: any) => {
     console.error('❌ Payment error callback:', error, errorData)
@@ -71,14 +151,24 @@ export default function ResultsPage() {
   }, [])
 
   const handleViewDetailsClick = useCallback(() => {
-    const isUnlocked = task?.evaluation?.is_unlocked
+    // Use manual evaluation if component evaluation is missing
+    const evaluationToUse = task?.evaluation || manualEvaluation
+    const isUnlocked = evaluationToUse?.is_unlocked
+    
     console.log('View details clicked. Is unlocked:', isUnlocked)
+    console.log('Using evaluation:', evaluationToUse)
     
     if (isUnlocked) {
       setShowDetailedReview(true)
+    } else {
+      // If not unlocked, show payment UI
+      setShowDetailedReview(true)
     }
-    // If not unlocked, the button shows payment UI
-  }, [task?.evaluation?.is_unlocked])
+  }, [task?.evaluation, manualEvaluation])
+
+  // Fix evaluation data - use manual evaluation if component evaluation is missing
+  const evaluation = task?.evaluation || manualEvaluation
+  const isEvaluationUnlocked = evaluation?.is_unlocked === true
 
   if (taskLoading) {
     return (
@@ -165,9 +255,6 @@ export default function ResultsPage() {
   }
 
   // Evaluated state - MAIN CONTENT
-  const evaluation = task.evaluation
-  const isEvaluationUnlocked = evaluation?.is_unlocked === true
-
   console.log('Rendering evaluated state. Evaluation:', evaluation, 'Unlocked:', isEvaluationUnlocked)
 
   return (
@@ -214,6 +301,11 @@ export default function ResultsPage() {
             <div className="flex items-center gap-3 mb-4">
               <CheckCircle className="w-8 h-8 text-green-500" />
               <h1 className="text-3xl font-bold">Evaluation Complete</h1>
+              {manualEvaluation && (
+                <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">
+                  Using manual data
+                </span>
+              )}
             </div>
             <p className="text-gray-400">Task: {task.title}</p>
             <p className="text-gray-400">Language: {task.language}</p>
@@ -329,7 +421,7 @@ export default function ResultsPage() {
                 </div>
               )}
 
-              {evaluation.strengths && evaluation.strengths.length > 0 && (
+              {evaluation.strengths && Array.isArray(evaluation.strengths) && evaluation.strengths.length > 0 && (
                 <div className="mb-6">
                   <h3 className="font-semibold mb-3 text-green-400">Key Strengths</h3>
                   <div className="space-y-3">
@@ -345,7 +437,7 @@ export default function ResultsPage() {
                 </div>
               )}
 
-              {evaluation.improvements && evaluation.improvements.length > 0 && (
+              {evaluation.improvements && Array.isArray(evaluation.improvements) && evaluation.improvements.length > 0 && (
                 <div className="mb-6">
                   <h3 className="font-semibold mb-3 text-yellow-400">Areas for Improvement</h3>
                   <div className="space-y-3">
@@ -395,9 +487,56 @@ export default function ResultsPage() {
           <p className="text-gray-400 mb-6">
             The task was marked as evaluated, but evaluation data could not be loaded.
           </p>
-          <button onClick={handleRefresh} className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold">
-            Refresh Data
-          </button>
+          <div className="space-y-4">
+            <button onClick={handleRefresh} className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold">
+              Refresh Data
+            </button>
+            <button onClick={runDebug} className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-semibold ml-4">
+              Debug Database
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Debug section - only show in development */}
+      {process.env.NODE_ENV === 'development' && debugInfo && (
+        <div className="mt-8 p-4 bg-gray-900 rounded-lg border border-yellow-500/30">
+          <div className="flex items-center gap-2 mb-3">
+            <Bug className="w-4 h-4 text-yellow-500" />
+            <h3 className="font-semibold text-yellow-400">Debug Info</h3>
+            <button 
+              onClick={runDebug}
+              className="ml-auto text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded"
+            >
+              Refresh Debug
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4 text-xs mb-3">
+            <div className="p-2 bg-gray-800 rounded">
+              <div className="font-semibold">Task Status</div>
+              <div>{task?.status || 'loading...'}</div>
+            </div>
+            <div className="p-2 bg-gray-800 rounded">
+              <div className="font-semibold">Has Evaluation</div>
+              <div className={debugInfo.hasEvaluation ? 'text-green-400' : 'text-red-400'}>
+                {debugInfo.hasEvaluation ? '✅ Yes' : '❌ No'}
+              </div>
+            </div>
+            <div className="p-2 bg-gray-800 rounded">
+              <div className="font-semibold">Is Unlocked</div>
+              <div className={debugInfo.isUnlocked ? 'text-green-400' : 'text-yellow-400'}>
+                {debugInfo.isUnlocked ? '✅ Unlocked' : '🔒 Locked'}
+              </div>
+            </div>
+          </div>
+          
+          <details className="text-xs text-gray-400">
+            <summary className="cursor-pointer">View Debug Details</summary>
+            <pre className="mt-2 overflow-x-auto bg-black/50 p-2 rounded text-[10px]">
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </details>
         </div>
       )}
     </div>
