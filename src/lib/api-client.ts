@@ -23,7 +23,7 @@ export const apiClient = {
 
   async createPaymentOrder(taskId: string, amount: number) {
     try {
-      const response = await fetch('/api/create-order', {
+      const response = await fetch('/api/payment/create-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ export const apiClient = {
 
   async verifyPayment(paymentData: any) {
     try {
-      const response = await fetch('/api/verify', {
+      const response = await fetch('/api/payment/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

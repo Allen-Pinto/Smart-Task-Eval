@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { loadRazorpay } from '@/lib/razorpay-client'
 
-// Define Razorpay types
 interface RazorpayOptions {
   key: string;
   amount: number;
@@ -57,7 +56,6 @@ interface PaymentButtonProps {
   successText?: string;
   showLoader?: boolean;
   retryCount?: number;
-  // Additional customization
   companyName?: string;
   productDescription?: string;
   customerName?: string;
@@ -66,7 +64,6 @@ interface PaymentButtonProps {
   themeColor?: string;
 }
 
-// Default company info
 const DEFAULT_CONFIG = {
   COMPANY_NAME: 'Code Evaluator Pro',
   PRODUCT_DESCRIPTION: 'Unlock detailed AI evaluation',
@@ -101,7 +98,6 @@ export default function PaymentButton({
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [retryAttempts, setRetryAttempts] = useState(0);
 
-  // Preload Razorpay script on component mount
   useEffect(() => {
     const initializeRazorpay = async () => {
       try {
@@ -123,6 +119,7 @@ export default function PaymentButton({
 
   const createOrder = useCallback(async (taskId: string, amount: number) => {
     try {
+      // FIXED: Use correct API path
       const response = await fetch('/api/payment/create-order', {
         method: 'POST',
         headers: {
@@ -150,6 +147,7 @@ export default function PaymentButton({
     taskId: string
   ) => {
     try {
+      // FIXED: Use correct API path
       const response = await fetch('/api/payment/verify', {
         method: 'POST',
         headers: {
@@ -218,6 +216,7 @@ export default function PaymentButton({
       handler: async (response: RazorpayResponse) => {
         try {
           setPaymentStatus('processing');
+          console.log('Payment successful, verifying...', response);
           
           const verifyData = await verifyPayment(
             response.razorpay_order_id,
@@ -228,18 +227,16 @@ export default function PaymentButton({
 
           if (verifyData.success) {
             setPaymentStatus('success');
+            console.log('Payment verified successfully');
             
-            // Call success callback
             onSuccess?.({
               orderId: response.razorpay_order_id,
               paymentId: response.razorpay_payment_id,
               taskId,
             });
 
-            // Show success message if no callback provided
             if (!onSuccess) {
               alert(successText);
-              // Auto-refresh after 2 seconds
               setTimeout(() => window.location.reload(), 2000);
             }
           } else {
@@ -262,7 +259,6 @@ export default function PaymentButton({
 
     const razorpay = new window.Razorpay(options);
 
-    // Add event listeners
     razorpay.on('payment.failed', (response: any) => {
       setPaymentStatus('error');
       setLoading(false);
@@ -279,15 +275,6 @@ export default function PaymentButton({
       } else {
         alert(`Payment failed: ${errorMessage}`);
       }
-    });
-
-    razorpay.on('payment.authorized', (response: any) => {
-      console.log('Payment authorized:', response);
-    });
-
-    razorpay.on('modal.ondismiss', () => {
-      console.log('Modal dismissed by user');
-      setLoading(false);
     });
 
     razorpay.open();
@@ -330,18 +317,15 @@ export default function PaymentButton({
     setPaymentStatus('processing');
 
     try {
-      // Create order
+      console.log('Creating order for task:', taskId, 'amount:', amount);
       const orderData = await createOrder(taskId, amount);
+      console.log('Order created:', orderData);
 
-      // Validate order data
       if (!orderData.orderId || !orderData.amount) {
         throw new Error('Invalid order response from server');
       }
 
-      // Open Razorpay modal
       openRazorpayModal(orderData);
-      
-      // Reset retry attempts on successful order creation
       setRetryAttempts(0);
     } catch (error: any) {
       setPaymentStatus('error');
@@ -359,13 +343,6 @@ export default function PaymentButton({
     }
   };
 
-  const handleRetry = () => {
-    if (retryAttempts < retryCount) {
-      handlePayment();
-    }
-  };
-
-  // Determine button state and content
   const isButtonDisabled = disabled || loading || !razorpayLoaded || retryAttempts >= retryCount;
   
   let buttonContent = '';
@@ -405,12 +382,9 @@ export default function PaymentButton({
           shadow-lg hover:shadow-xl
           transform hover:-translate-y-0.5
           disabled:transform-none disabled:shadow-none
-          disabled:hover:transform-none
           focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50
           ${className}
         `}
-        aria-busy={loading}
-        aria-label={`${buttonText} for ₹${amount}`}
       >
         <span className="flex items-center justify-center gap-2">
           {showSpinner && (
@@ -419,7 +393,6 @@ export default function PaymentButton({
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              aria-hidden="true"
             >
               <circle
                 className="opacity-25"
@@ -438,75 +411,16 @@ export default function PaymentButton({
           )}
           {buttonContent}
         </span>
-        
-        {paymentStatus === 'processing' && (
-          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-        )}
       </button>
 
-      {/* Status indicators */}
-      <div className="h-6 text-sm text-center">
-        {paymentStatus === 'error' && retryAttempts < retryCount && (
-          <button
-            onClick={handleRetry}
-            className="text-red-600 hover:text-red-700 underline transition-colors"
-          >
-            Click to retry payment
-          </button>
-        )}
-        
-        {!razorpayLoaded && (
-          <p className="text-amber-600">Initializing payment gateway...</p>
-        )}
-        
-        {retryAttempts >= retryCount && (
-          <p className="text-red-600">Maximum retries reached. Please refresh.</p>
-        )}
-      </div>
-
-      {/* Debug info (only in development) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600">
-          <p>Status: {paymentStatus}</p>
-          <p>Razorpay Loaded: {razorpayLoaded ? 'Yes' : 'No'}</p>
-          <p>Retry Attempts: {retryAttempts}/{retryCount}</p>
-          <p>Task ID: {taskId}</p>
-          <p>Amount: ₹{amount}</p>
-        </div>
+      {paymentStatus === 'error' && retryAttempts < retryCount && (
+        <button
+          onClick={handlePayment}
+          className="text-sm text-red-600 hover:text-red-700 underline"
+        >
+          Click to retry payment
+        </button>
       )}
     </div>
   );
-}
-
-// Optional: Add CSS for shimmer animation
-const shimmerStyles = `
-@keyframes shimmer {
-  0% {
-    background-position: -200% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
-}
-
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-`;
-
-if (typeof document !== 'undefined') {
-  const styleId = 'payment-button-styles';
-  if (!document.getElementById(styleId)) {
-    const styleElement = document.createElement('style');
-    styleElement.id = styleId;
-    styleElement.innerHTML = shimmerStyles;
-    document.head.appendChild(styleElement);
-  }
 }
